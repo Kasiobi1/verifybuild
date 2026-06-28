@@ -8,17 +8,10 @@ export async function POST(req: NextRequest) {
     const { walletAddress, repo, analysis } = body;
 
     if (!walletAddress) {
-      return NextResponse.json(
-        { error: "Wallet address is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Wallet address is required." }, { status: 400 });
     }
-
     if (!analysis) {
-      return NextResponse.json(
-        { error: "Analysis data is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Analysis data is required." }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -31,7 +24,7 @@ export async function POST(req: NextRequest) {
       repo,
       analysis,
       issuedAt: new Date(),
-      status: "pending", // pending → issued once HACD mints
+      status: "pending",
     };
 
     await collection.insertOne(credential);
@@ -53,25 +46,50 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const wallet = searchParams.get("wallet");
     const id = searchParams.get("id");
+    const query = searchParams.get("q");
 
     const client = await clientPromise;
     const db = client.db("verifybuild");
     const collection = db.collection("credentials");
 
+    // Single credential by ID
     if (id) {
-      // Fetch single credential by ID
       const credential = await collection.findOne({ id });
       if (!credential) {
-        return NextResponse.json(
-          { error: "Credential not found." },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Credential not found." }, { status: 404 });
       }
       return NextResponse.json({ success: true, credential });
     }
 
+    // Search across skills, wallet, repo name, credential title
+    if (query) {
+      const q = query.trim().toLowerCase();
+      const all = await collection.find({}).sort({ issuedAt: -1 }).limit(200).toArray();
+
+      const results = all.filter((c) => {
+        const walletMatch = c.walletAddress?.toLowerCase().includes(q);
+        const repoMatch = c.repo?.name?.toLowerCase().includes(q);
+        const titleMatch = c.analysis?.credentialTitle?.toLowerCase().includes(q);
+        const skillMatch = c.analysis?.skills?.some((s: string) => s.toLowerCase().includes(q));
+        const categoryMatch = c.analysis?.category?.toLowerCase().includes(q);
+        return walletMatch || repoMatch || titleMatch || skillMatch || categoryMatch;
+      });
+
+      return NextResponse.json({ success: true, credentials: results });
+    }
+
+    // All credentials for explore page
+    if (wallet === "all") {
+      const credentials = await collection
+        .find({})
+        .sort({ issuedAt: -1 })
+        .limit(50)
+        .toArray();
+      return NextResponse.json({ success: true, credentials });
+    }
+
+    // All credentials for a specific wallet
     if (wallet) {
-      // Fetch all credentials for a wallet
       const credentials = await collection
         .find({ walletAddress: wallet.toLowerCase() })
         .sort({ issuedAt: -1 })
@@ -79,10 +97,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, credentials });
     }
 
-    return NextResponse.json(
-      { error: "Provide wallet or id parameter." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Provide wallet, id, or q parameter." }, { status: 400 });
   } catch (err: unknown) {
     console.error("[get-credential] error:", err);
     const message = err instanceof Error ? err.message : "Failed to fetch credential.";
