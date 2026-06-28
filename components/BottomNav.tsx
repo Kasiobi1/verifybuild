@@ -14,8 +14,8 @@ export default function BottomNav() {
   const items = [
     { label: "home",    icon: "⌂", href: "/" },
     { label: "explore", icon: "⊞", href: "/explore" },
+    { label: "rank",    icon: "◈", href: "/leaderboard" },
     { label: "profile", icon: "◉", href: profileHref },
-    { label: "creds",   icon: "✦", href: profileHref },
   ];
 
   const isActive = (href: string) => {
