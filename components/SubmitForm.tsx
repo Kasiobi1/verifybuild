@@ -146,7 +146,10 @@ function ResultCard({ result }: { result: AnalysisResult }) {
           <div style={{ border: "1px solid #fbbf2440", borderRadius: 10, background: "#0a0a0a", padding: 24, maxWidth: 380, width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: 24, marginBottom: 12 }}>⚠</div>
             <div style={{ fontSize: 9, color: "#fbbf24", fontFamily: mono, letterSpacing: "0.1em", marginBottom: 8 }}>// already_issued</div>
-            <p style={{ fontSize: 11, color: "#888", fontFamily: mono, lineHeight: 1.7, marginBottom: 20 }}>{duplicate.message}</p>
+            <p style={{ fontSize: 11, color: "#888", fontFamily: mono, lineHeight: 1.7, marginBottom: 8 }}>{duplicate.message}</p>
+<p style={{ fontSize: 10, color: "#444", fontFamily: mono, lineHeight: 1.7, marginBottom: 20 }}>
+  Want to test? Submit any of your own public GitHub repos — each repo can only be claimed once.
+</p>
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               <a href={duplicate.existingUrl} style={{ fontSize: 10, color: "#00ff88", fontFamily: mono, border: "1px solid #00ff8830", borderRadius: 4, padding: "8px 14px", textDecoration: "none", background: "#00ff8810" }}>
                 view_existing()
