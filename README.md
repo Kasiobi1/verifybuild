@@ -1,36 +1,148 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# [VERIXA] — AI-Verified On-Chain Credentials
+
+> Your code is your credential. Submit a GitHub repo. AI scores the work. Credential issued on-chain.
+
+Built during **HACD Labs Incubator Season 2** in 7 days.
+
+🔗 **Live:** https://verifybuild-gules.vercel.app
+
+---
+
+## What is Verixa?
+
+Verixa solves a real problem — fake resumes and unverifiable skill claims are everywhere in web3 hiring and DAO contributor vetting. Anyone can say they're a developer. Verixa lets the code prove it.
+
+**The flow:**
+```
+Submit GitHub repo
+       ↓
+AI analyzes the actual code
+(structure, languages, complexity, docs, tests)
+       ↓
+Skill score generated (0–100)
+       ↓
+Verifiable credential issued to wallet address
+       ↓
+Shareable, permanent, on-chain
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 14, TypeScript, Tailwind CSS |
+| **AI Engine** | Groq API — llama-3.3-70b-versatile |
+| **Streaming** | Server-Sent Events (SSE) — real-time analysis log |
+| **Database** | MongoDB Atlas |
+| **Wallet** | MetaMask via ethers.js |
+| **GitHub Analysis** | GitHub REST API |
+| **Deployment** | Vercel |
+| **Blockchain** | HACD Labs — Hacash ecosystem |
+
+---
+
+## Features
+
+- **AI Analysis** — reads your repo's README, languages, config files, and file structure
+- **Skill Scoring** — 0-100 score with skill level breakdown (Beginner / Intermediate / Advanced)
+- **Radar Chart** — 6-dimensional skill visualization (complexity, documentation, testing, security, innovation, completeness)
+- **Streaming Log** — real-time terminal-style analysis output via SSE
+- **On-Chain Credentials** — verifiable credential saved and tied to wallet address
+- **Shareable URL** — public credential page at `/verify/[id]`
+- **Builder Profiles** — public profile at `/profile/[wallet]`
+- **Leaderboard** — top builders ranked by score
+- **Explore & Search** — search by skill, wallet, project name, or credential title
+- **Duplicate Protection** — each GitHub repo can only be claimed once
+- **Mobile First** — terminal UI with bottom navigation
+
+---
+
+## Project Structure
+
+```
+verifybuild/
+├── app/
+│   ├── page.tsx                    # Landing page + submit form
+│   ├── verify/[id]/page.tsx        # Public credential page
+│   ├── profile/[wallet]/page.tsx   # Builder profile page
+│   ├── explore/page.tsx            # Explore + search all credentials
+│   ├── leaderboard/page.tsx        # Top builders leaderboard
+│   ├── connect/page.tsx            # Wallet connect page
+│   └── api/
+│       ├── analyze-stream/         # SSE streaming AI analysis
+│       ├── credentials/            # CRUD for credentials (MongoDB)
+│       └── leaderboard/            # Leaderboard aggregation
+├── components/
+│   ├── SubmitForm.tsx              # Main form + streaming log + result card
+│   ├── RadarChart.tsx              # SVG radar chart component
+│   ├── WalletConnect.tsx           # MetaMask connection
+│   └── BottomNav.tsx               # Mobile bottom navigation
+├── hooks/
+│   └── useWallet.ts                # MetaMask wallet hook
+└── lib/
+    └── mongodb.ts                  # MongoDB connection utility
+```
+
+---
+
+## Environment Variables
+
+```env
+GROQ_API_KEY=               # Groq API key
+GITHUB_TOKEN=               # GitHub personal access token (optional, increases rate limit)
+MONGODB_URI=                # MongoDB Atlas connection string
+NEXT_PUBLIC_APP_URL=        # Your deployment URL
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Clone the repo
+git clone https://github.com/Kasiobi1/verifybuild
+cd verifybuild
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.local.example .env.local
+# Add your keys to .env.local
+
+# Run locally
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Token — Verixa (VRX)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Verixa is launching as a Stack Token on HACD Labs.
 
-## Learn More
+| Parameter | Value |
+|---|---|
+| Name | Verixa |
+| Ticker | VRX |
+| Type | HYBRID (FT + NFT) |
+| Total Supply | 1,000,000 VRX |
+| Lots | 100 |
+| Stack Cost | 50 HAC per HACD |
 
-To learn more about Next.js, take a look at the following resources:
+**VRX utility:** credential access, governance, verifier rewards, organization staking.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Built With
 
-## Deploy on Vercel
+- [Next.js](https://nextjs.org)
+- [Groq](https://groq.com)
+- [MongoDB Atlas](https://www.mongodb.com/atlas)
+- [HACD Labs](https://hacd.it)
+- [ethers.js](https://ethers.org)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*Built by [@Kasiobi1](https://github.com/Kasiobi1) — HACD Labs Incubator Season 2*
