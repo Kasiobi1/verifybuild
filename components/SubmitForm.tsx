@@ -104,14 +104,26 @@ function ResultCard({ result }: { result: AnalysisResult }) {
   const [issued, setIssued] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [issueError, setIssueError] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<{ message: string; existingUrl: string } | null>(null);
   const totalBytes = Object.values(repo.languages).reduce((a, b) => a + b, 0);
 
   const handleIssue = async () => {
     if (!isConnected || !address) { connect(); return; }
     setIssuing(true); setIssueError(null);
     try {
-      const res = await fetch("/api/credentials", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ walletAddress: address, repo, analysis }) });
+      const res = await fetch("/api/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: address, repo, analysis }),
+      });
       const data = await res.json();
+
+      // Duplicate check
+      if (res.status === 409) {
+        setDuplicate({ message: data.message, existingUrl: data.shareUrl });
+        return;
+      }
+
       if (!res.ok || !data.success) { setIssueError(data.error || "Failed."); return; }
       setShareUrl(data.shareUrl); setIssued(true);
     } catch { setIssueError("Network error. Please try again."); }
@@ -127,6 +139,26 @@ function ResultCard({ result }: { result: AnalysisResult }) {
 
   return (
     <div style={{ marginTop: 24, animation: "fadeIn 0.4s ease" }}>
+
+      {/* Duplicate popup */}
+      {duplicate && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ border: "1px solid #fbbf2440", borderRadius: 10, background: "#0a0a0a", padding: 24, maxWidth: 380, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>⚠</div>
+            <div style={{ fontSize: 9, color: "#fbbf24", fontFamily: mono, letterSpacing: "0.1em", marginBottom: 8 }}>// already_issued</div>
+            <p style={{ fontSize: 11, color: "#888", fontFamily: mono, lineHeight: 1.7, marginBottom: 20 }}>{duplicate.message}</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              <a href={duplicate.existingUrl} style={{ fontSize: 10, color: "#00ff88", fontFamily: mono, border: "1px solid #00ff8830", borderRadius: 4, padding: "8px 14px", textDecoration: "none", background: "#00ff8810" }}>
+                view_existing()
+              </a>
+              <button onClick={() => setDuplicate(null)} style={{ fontSize: 10, color: "#555", fontFamily: mono, border: "1px solid #1a1a1a", borderRadius: 4, padding: "8px 14px", background: "none", cursor: "pointer" }}>
+                [close]
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       {block("credential_output", (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
@@ -291,7 +323,6 @@ export default function SubmitForm({ onResult }: SubmitFormProps) {
       {showUrlSheet && <UrlInputSheet value={githubUrl} onChange={setGithubUrl} onClose={() => setShowUrlSheet(false)} />}
 
       <div style={{ border: "1px solid #1a1a1a", borderRadius: 10, background: "#0a0a0a", overflow: "hidden" }}>
-        {/* Terminal header */}
         <div style={{ background: "#111", borderBottom: "1px solid #1a1a1a", padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f87171", display: "inline-block" }} />
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fbbf24", display: "inline-block" }} />
@@ -302,7 +333,6 @@ export default function SubmitForm({ onResult }: SubmitFormProps) {
         <div style={{ padding: 16 }}>
           <div style={{ fontSize: 10, color: "#00ff88", fontFamily: mono, marginBottom: 10, opacity: 0.6 }}>verixa@hacd ~ % analyze</div>
 
-          {/* GitHub URL */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 9, color: "#444", fontFamily: mono, marginBottom: 6, letterSpacing: "0.08em" }}>--repo <span style={{ color: "#f87171" }}>*required</span></div>
             <div onClick={() => setShowUrlSheet(true)} style={{ ...inputStyle, cursor: "text", color: githubUrl ? "#00ff88" : "#333", border: githubUrl ? "1px solid #00ff8840" : "1px solid #1a1a1a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -311,7 +341,6 @@ export default function SubmitForm({ onResult }: SubmitFormProps) {
             </div>
           </div>
 
-          {/* Advanced toggle */}
           <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#333", fontFamily: mono, padding: "4px 0", marginBottom: showAdvanced ? 10 : 0 }}>
             {showAdvanced ? "▼" : "▶"} --advanced-options
           </button>
@@ -341,7 +370,6 @@ export default function SubmitForm({ onResult }: SubmitFormProps) {
         </div>
       </div>
 
-      {/* Streaming log */}
       {showLogs && logs.length > 0 && (
         <div style={{ border: "1px solid #1a1a1a", borderRadius: 10, background: "#050505", overflow: "hidden", marginTop: 8 }}>
           <div style={{ background: "#0a0a0a", borderBottom: "1px solid #1a1a1a", padding: "6px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

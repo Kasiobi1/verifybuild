@@ -18,6 +18,24 @@ export async function POST(req: NextRequest) {
     const db = client.db("verifybuild");
     const collection = db.collection("credentials");
 
+    // ── Duplicate check — has this GitHub repo already been issued? ──
+    const githubUrl = repo?.githubUrl?.toLowerCase();
+    if (githubUrl) {
+      const existing = await collection.findOne({
+        "repo.githubUrl": { $regex: new RegExp(`^${githubUrl}$`, "i") },
+      });
+      if (existing) {
+        const short = `${existing.walletAddress.slice(0, 6)}...${existing.walletAddress.slice(-4)}`;
+        return NextResponse.json({
+          error: "already_issued",
+          message: `This repository has already been issued to ${short}`,
+          existingCredentialId: existing.id,
+          existingWallet: existing.walletAddress,
+          shareUrl: `${process.env.NEXT_PUBLIC_APP_URL}/verify/${existing.id}`,
+        }, { status: 409 });
+      }
+    }
+
     const credential = {
       id: randomUUID(),
       walletAddress: walletAddress.toLowerCase(),
@@ -52,7 +70,6 @@ export async function GET(req: NextRequest) {
     const db = client.db("verifybuild");
     const collection = db.collection("credentials");
 
-    // Single credential by ID
     if (id) {
       const credential = await collection.findOne({ id });
       if (!credential) {
@@ -61,11 +78,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, credential });
     }
 
-    // Search across skills, wallet, repo name, credential title
     if (query) {
       const q = query.trim().toLowerCase();
       const all = await collection.find({}).sort({ issuedAt: -1 }).limit(200).toArray();
-
       const results = all.filter((c) => {
         const walletMatch = c.walletAddress?.toLowerCase().includes(q);
         const repoMatch = c.repo?.name?.toLowerCase().includes(q);
@@ -74,21 +89,14 @@ export async function GET(req: NextRequest) {
         const categoryMatch = c.analysis?.category?.toLowerCase().includes(q);
         return walletMatch || repoMatch || titleMatch || skillMatch || categoryMatch;
       });
-
       return NextResponse.json({ success: true, credentials: results });
     }
 
-    // All credentials for explore page
     if (wallet === "all") {
-      const credentials = await collection
-        .find({})
-        .sort({ issuedAt: -1 })
-        .limit(50)
-        .toArray();
+      const credentials = await collection.find({}).sort({ issuedAt: -1 }).limit(50).toArray();
       return NextResponse.json({ success: true, credentials });
     }
 
-    // All credentials for a specific wallet
     if (wallet) {
       const credentials = await collection
         .find({ walletAddress: wallet.toLowerCase() })
