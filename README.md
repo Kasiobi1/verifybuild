@@ -34,13 +34,12 @@ Shareable, permanent, on-chain
 |---|---|
 | **Frontend** | Next.js 14, TypeScript, Tailwind CSS |
 | **AI Engine** | Groq API — llama-3.3-70b-versatile |
+| **Blockchain** | HACD Labs — Hacash ecosystem |
 | **Streaming** | Server-Sent Events (SSE) — real-time analysis log |
 | **Database** | MongoDB Atlas |
 | **Wallet** | MetaMask via ethers.js |
 | **GitHub Analysis** | GitHub REST API |
 | **Deployment** | Vercel |
-| **Blockchain** | HACD Labs — Hacash ecosystem |
-
 ---
 
 ## Features
