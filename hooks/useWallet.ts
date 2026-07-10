@@ -3,41 +3,59 @@
 import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 
+type EIP1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
 declare global {
   interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on: (event: string, handler: (...args: unknown[]) => void) => void;
-      removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
-    };
+    ethereum?: EIP1193Provider;
+    okxwallet?: EIP1193Provider; // OKX Wallet injects its own provider, separate from window.ethereum
   }
 }
+
+export type WalletKind = "metamask" | "okx";
 
 interface WalletState {
   address: string | null;
   shortAddress: string | null;
+  walletKind: WalletKind | null;
   isConnecting: boolean;
   isConnected: boolean;
   error: string | null;
+}
+
+const WALLET_INFO: Record<WalletKind, { label: string; installUrl: string }> = {
+  metamask: { label: "MetaMask", installUrl: "https://metamask.io" },
+  okx: { label: "OKX Wallet", installUrl: "https://www.okx.com/web3" },
+};
+
+function getProvider(kind: WalletKind): EIP1193Provider | undefined {
+  if (typeof window === "undefined") return undefined;
+  return kind === "okx" ? window.okxwallet : window.ethereum;
 }
 
 export function useWallet() {
   const [state, setState] = useState<WalletState>({
     address: null,
     shortAddress: null,
+    walletKind: null,
     isConnecting: false,
     isConnected: false,
     error: null,
   });
 
-  const shorten = (addr: string) =>
-    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const shorten = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-  const connect = useCallback(async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
+  const connect = useCallback(async (kind: WalletKind = "metamask") => {
+    const provider = getProvider(kind);
+
+    if (!provider) {
       setState((s) => ({
         ...s,
-        error: "MetaMask not found. Please install it at metamask.io",
+        error: `${WALLET_INFO[kind].label} not found. Install it at ${WALLET_INFO[kind].installUrl}`,
       }));
       return;
     }
@@ -45,25 +63,21 @@ export function useWallet() {
     setState((s) => ({ ...s, isConnecting: true, error: null }));
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const accounts = await ethersProvider.send("eth_requestAccounts", []);
       const address = (accounts as string[])[0];
 
       setState({
         address,
         shortAddress: shorten(address),
+        walletKind: kind,
         isConnecting: false,
         isConnected: true,
         error: null,
       });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Connection rejected.";
-      setState((s) => ({
-        ...s,
-        isConnecting: false,
-        error: message,
-      }));
+      const message = err instanceof Error ? err.message : "Connection rejected.";
+      setState((s) => ({ ...s, isConnecting: false, error: message }));
     }
   }, []);
 
@@ -71,49 +85,69 @@ export function useWallet() {
     setState({
       address: null,
       shortAddress: null,
+      walletKind: null,
       isConnecting: false,
       isConnected: false,
       error: null,
     });
   }, []);
 
+  // Re-hydrate an existing session on mount. Checks OKX first, falls back to
+  // MetaMask — if both happen to already be connected, OKX wins since that's
+  // the ecosystem this build is targeting.
   useEffect(() => {
-    if (typeof window === "undefined" || !window.ethereum) return;
+    if (typeof window === "undefined") return;
 
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    provider.send("eth_accounts", []).then((accounts) => {
-      const list = accounts as string[];
-      if (list.length > 0) {
+    const tryRehydrate = async (kind: WalletKind) => {
+      const provider = getProvider(kind);
+      if (!provider) return false;
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const accounts = (await ethersProvider.send("eth_accounts", [])) as string[];
+      if (accounts.length > 0) {
         setState({
-          address: list[0],
-          shortAddress: shorten(list[0]),
+          address: accounts[0],
+          shortAddress: shorten(accounts[0]),
+          walletKind: kind,
           isConnecting: false,
           isConnected: true,
           error: null,
         });
+        return true;
       }
-    });
+      return false;
+    };
+
+    (async () => {
+      const gotOkx = await tryRehydrate("okx");
+      if (!gotOkx) await tryRehydrate("metamask");
+    })();
+  }, []);
+
+  // Listen for account changes on whichever provider is currently active
+  useEffect(() => {
+    if (!state.walletKind) return;
+    const provider = getProvider(state.walletKind);
+    if (!provider) return;
 
     const handleAccountsChanged = (...args: unknown[]) => {
       const accounts = args[0] as string[];
       if (accounts.length === 0) {
         disconnect();
       } else {
-        setState({
+        setState((s) => ({
+          ...s,
           address: accounts[0],
           shortAddress: shorten(accounts[0]),
           isConnecting: false,
           isConnected: true,
           error: null,
-        });
+        }));
       }
     };
 
-    window.ethereum.on("accountsChanged", handleAccountsChanged);
-    return () => {
-      window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
-    };
-  }, [disconnect]);
+    provider.on("accountsChanged", handleAccountsChanged);
+    return () => provider.removeListener("accountsChanged", handleAccountsChanged);
+  }, [state.walletKind, disconnect]);
 
   return { ...state, connect, disconnect };
 }
