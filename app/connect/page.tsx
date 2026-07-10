@@ -65,7 +65,7 @@ export default function ConnectPage() {
         </h1>
 
         <p style={{ fontSize: 11, color: "#444", fontFamily: mono, lineHeight: 1.7, marginBottom: 40, maxWidth: 320, margin: "0 auto 40px" }}>
-          Your profile shows all credentials tied to your wallet address. Connect MetaMask to access your verified builder identity.
+          Your profile shows all credentials tied to your wallet address. Connect OKX Wallet or MetaMask to access your verified builder identity.
         </p>
 
         {/* Steps */}
@@ -74,7 +74,7 @@ export default function ConnectPage() {
             // what_happens_next
           </div>
           {[
-            { step: "01", text: "MetaMask opens and asks for approval" },
+            { step: "01", text: "Your wallet opens and asks for approval" },
             { step: "02", text: "We read your wallet address — nothing else" },
             { step: "03", text: "You're taken to your builder profile" },
           ].map((item) => (
@@ -92,7 +92,7 @@ export default function ConnectPage() {
         )}
 
         <button
-          onClick={connect}
+          onClick={() => connect("okx")}
           disabled={isConnecting}
           style={{
             width: "100%",
@@ -111,7 +111,7 @@ export default function ConnectPage() {
             gap: 8,
             transition: "all 0.2s",
             boxShadow: isConnecting ? "none" : "0 0 20px rgba(0,255,136,0.3)",
-            marginBottom: 12,
+            marginBottom: 10,
           }}
         >
           {isConnecting ? (
@@ -120,8 +120,29 @@ export default function ConnectPage() {
               connecting...
             </>
           ) : (
-            "connect_wallet()"
+            "connect_okx_wallet()"
           )}
+        </button>
+
+        <button
+          onClick={() => connect("metamask")}
+          disabled={isConnecting}
+          style={{
+            width: "100%",
+            background: "none",
+            border: "1px solid #1a1a1a",
+            borderRadius: 8,
+            padding: "14px 20px",
+            fontSize: 12,
+            fontFamily: mono,
+            fontWeight: 700,
+            color: isConnecting ? "#333" : "#666",
+            cursor: isConnecting ? "not-allowed" : "pointer",
+            transition: "all 0.2s",
+            marginBottom: 12,
+          }}
+        >
+          connect_metamask()
         </button>
 
         <p style={{ fontSize: 10, color: "#333", fontFamily: mono }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useWallet } from "@/hooks/useWallet";
 import RadarChart from "@/components/RadarChart";
 
@@ -99,7 +100,8 @@ function ScoreRing({ score }: { score: number }) {
 
 function ResultCard({ result }: { result: AnalysisResult }) {
   const { repo, analysis } = result;
-  const { address, isConnected, connect } = useWallet();
+  const { address, isConnected } = useWallet();
+  const router = useRouter();
   const [issuing, setIssuing] = useState(false);
   const [issued, setIssued] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -108,7 +110,12 @@ function ResultCard({ result }: { result: AnalysisResult }) {
   const totalBytes = Object.values(repo.languages).reduce((a, b) => a + b, 0);
 
   const handleIssue = async () => {
-    if (!isConnected || !address) { connect(); return; }
+    // Not connected — send to /connect so the user can choose OKX Wallet or
+    // MetaMask, instead of silently defaulting to one.
+    if (!isConnected || !address) {
+      router.push("/connect");
+      return;
+    }
     setIssuing(true); setIssueError(null);
     try {
       const res = await fetch("/api/credentials", {
