@@ -101,20 +101,28 @@ export function useWallet() {
     const tryRehydrate = async (kind: WalletKind) => {
       const provider = getProvider(kind);
       if (!provider) return false;
-      const ethersProvider = new ethers.BrowserProvider(provider);
-      const accounts = (await ethersProvider.send("eth_accounts", [])) as string[];
-      if (accounts.length > 0) {
-        setState({
-          address: accounts[0],
-          shortAddress: shorten(accounts[0]),
-          walletKind: kind,
-          isConnecting: false,
-          isConnected: true,
-          error: null,
-        });
-        return true;
+      try {
+        const ethersProvider = new ethers.BrowserProvider(provider);
+        const accounts = (await ethersProvider.send("eth_accounts", [])) as string[];
+        if (accounts.length > 0) {
+          setState({
+            address: accounts[0],
+            shortAddress: shorten(accounts[0]),
+            walletKind: kind,
+            isConnecting: false,
+            isConnected: true,
+            error: null,
+          });
+          return true;
+        }
+        return false;
+      } catch {
+        // Some wallets (e.g. OKX Wallet) throw on eth_accounts for an
+        // unauthorized/not-yet-connected origin instead of returning [].
+        // Treat that the same as "not connected" — the user just hasn't
+        // clicked connect yet, this isn't a real error.
+        return false;
       }
-      return false;
     };
 
     (async () => {
