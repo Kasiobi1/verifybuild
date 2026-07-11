@@ -12,14 +12,14 @@ export default function BottomNav() {
   const profileHref = isConnected && address ? `/profile/${address}` : "/connect";
 
   const items = [
-    { label: "home",    icon: "⌂", href: "/" },
+    { label: "home",    icon: "⌂", href: "/submit" },
     { label: "explore", icon: "⊞", href: "/explore" },
     { label: "rank",    icon: "◈", href: "/leaderboard" },
     { label: "profile", icon: "◉", href: profileHref },
   ];
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
+    if (href === "/submit") return pathname === "/submit";
     if (href === "/connect") return pathname === "/connect";
     const base = href.split("/").slice(0, 2).join("/");
     return pathname.startsWith(base);
