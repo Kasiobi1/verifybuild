@@ -40,6 +40,9 @@ export default function Home() {
           <a href="#how" style={{ fontSize: 11, color: "#444", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}>
             ./how-it-works
           </a>
+          <a href="/demo/dao-check" style={{ fontSize: 11, color: "#444", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}>
+            ./asp-demo
+          </a>
           <WalletConnect />
         </div>
       </nav>
@@ -63,7 +66,7 @@ export default function Home() {
             opacity: 0.7,
           }}>
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#00ff88", display: "inline-block", animation: "pulse-green 2s infinite" }} />
-            HACD LABS INCUBATOR S2
+            HACD LABS INCUBATOR S2 · OKX AI GENESIS
           </div>
 
           <h1 style={{
@@ -165,10 +168,10 @@ export default function Home() {
           gap: 8,
         }}>
           <span style={{ fontSize: 10, color: "#333", fontFamily: "JetBrains Mono, monospace" }}>
-            [VERIXA] — HACD Labs Incubator S2
+            [VERIXA] — HACD Labs Incubator S2 · OKX AI Genesis
           </span>
           <span style={{ fontSize: 10, color: "#333", fontFamily: "JetBrains Mono, monospace" }}>
-            powered by groq + hacd
+            powered by hacd + okx
           </span>
         </footer>
       </div>
