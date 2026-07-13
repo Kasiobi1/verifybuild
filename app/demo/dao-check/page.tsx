@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useWallet } from "@/hooks/useWallet";
+import { buildAndSignPayment, type PaymentRequirements } from "@/lib/x402Buyer";
 
 const mono = "JetBrains Mono, monospace";
 
@@ -33,9 +35,11 @@ const logColor: Record<string, string> = {
 };
 
 export default function DaoCheckDemo() {
+  const { isConnected, walletKind, address } = useWallet();
   const [wallet, setWallet] = useState("");
   const [skillDomain, setSkillDomain] = useState("");
   const [running, setRunning] = useState(false);
+  const [payRunning, setPayRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [result, setResult] = useState<QueryResult | null>(null);
 
@@ -44,7 +48,8 @@ export default function DaoCheckDemo() {
 
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  const runQuery = async () => {
+  // Existing free demo path — unchanged, hits the public demo-dao-query route.
+  const runFreeDemo = async () => {
     if (!/^0x[a-fA-F0-9]{40}$/.test(wallet.trim())) {
       log("error: not a valid EVM wallet address", "error");
       return;
@@ -62,7 +67,7 @@ export default function DaoCheckDemo() {
       log(`→ filtering for domain: "${skillDomain.trim()}"`, "info");
       await wait(300);
     }
-    log("→ calling POST /api/verify-query ...", "info");
+    log("→ calling POST /api/demo-dao-query (free demo route)...", "info");
 
     try {
       const res = await fetch("/api/demo-dao-query", {
@@ -80,19 +85,90 @@ export default function DaoCheckDemo() {
         log(`✓ credential found — confidence score ${data.confidenceScore}/100`, "success");
         await wait(200);
         log(`✓ overall level: ${data.overallSkillLevel}`, "success");
-        await wait(200);
-        log("$ decision → grant access / approve bounty", "system");
       } else {
         log("⚠ no verified credential found for this wallet", "warn");
-        await wait(200);
-        log("$ decision → deny / request manual review", "system");
       }
-
       setResult(data);
     } catch {
       log("error: request failed", "error");
     } finally {
       setRunning(false);
+    }
+  };
+
+  // Real x402 paid flow — hits the actual authenticated verify-query endpoint,
+  // gets the 402 challenge, signs it with the connected wallet, retries.
+  const runPaidQuery = async () => {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet.trim())) {
+      log("error: not a valid EVM wallet address", "error");
+      return;
+    }
+    if (!isConnected || !walletKind) {
+      log("error: connect a wallet first (top right) to pay for this query", "error");
+      return;
+    }
+
+    setResult(null);
+    setLogs([]);
+    setPayRunning(true);
+
+    const targetWallet = wallet.trim().toLowerCase();
+    const body = JSON.stringify({ wallet: targetWallet, skillDomain: skillDomain.trim() || "any" });
+    const resourceUrl = `${window.location.origin}/api/verify-query`;
+
+    try {
+      log("$ dao-bot ~ calling real ASP endpoint (no auth)...", "system");
+      const firstRes = await fetch("/api/verify-query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+
+      if (firstRes.status !== 402) {
+        // Shouldn't normally happen — no API key is sent, so 402 is expected.
+        const data = await firstRes.json();
+        log(`unexpected response (status ${firstRes.status})`, "warn");
+        setResult(data);
+        return;
+      }
+
+      const challenge = await firstRes.json();
+      const requirements: PaymentRequirements = challenge.accepts[0];
+      log(`⚠ 402 payment required — $0.01 USDC on X Layer`, "warn");
+      await wait(200);
+      log(`→ pay to ${requirements.payTo.slice(0, 6)}...${requirements.payTo.slice(-4)}`, "info");
+      await wait(200);
+      log(`→ requesting signature from ${walletKind === "okx" ? "OKX Wallet" : "MetaMask"}...`, "info");
+
+      const { headerValue, payer } = await buildAndSignPayment(walletKind, requirements, resourceUrl);
+      log(`✓ signed by ${payer.slice(0, 6)}...${payer.slice(-4)}`, "success");
+      await wait(200);
+      log("→ retrying with X-PAYMENT header...", "info");
+
+      const paidRes = await fetch("/api/verify-query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-PAYMENT": headerValue },
+        body,
+      });
+      const data: QueryResult = await paidRes.json();
+
+      if (!paidRes.ok) {
+        log(`✗ payment/query failed: ${JSON.stringify(data)}`, "error");
+        return;
+      }
+
+      log("✓ payment settled — resource delivered", "success");
+      if (data.verified) {
+        log(`✓ credential found — confidence score ${data.confidenceScore}/100`, "success");
+      } else {
+        log("⚠ no verified credential found for this wallet", "warn");
+      }
+      setResult(data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Payment failed.";
+      log(`error: ${message}`, "error");
+    } finally {
+      setPayRunning(false);
     }
   };
 
@@ -105,11 +181,21 @@ export default function DaoCheckDemo() {
         <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", fontFamily: mono, marginBottom: 8 }}>
           Simulate a DAO bot checking a builder
         </h1>
-        <p style={{ fontSize: 11, color: "#666", fontFamily: mono, lineHeight: 1.7, marginBottom: 28, maxWidth: 480 }}>
-          This simulates a third-party agent — a DAO onboarding bot, a grants dashboard, a hackathon
-          discovery tool — calling Verixa&apos;s ASP endpoint to check whether a wallet has a verified
-          skill credential before granting access, approving a bounty, or listing a builder.
+        <p style={{ fontSize: 11, color: "#666", fontFamily: mono, lineHeight: 1.7, marginBottom: 20, maxWidth: 480 }}>
+          Two ways to try this: a free instant demo, or the real paid flow — actual x402 payment
+          on OKX X Layer, signed by your connected wallet.
         </p>
+
+        {!isConnected && (
+          <div style={{ fontSize: 10, color: "#fbbf24", fontFamily: mono, border: "1px solid #fbbf2430", borderRadius: 6, padding: "8px 12px", marginBottom: 16, background: "#fbbf2408" }}>
+            connect a wallet (top right) to try the real paid flow — the free demo below works without one
+          </div>
+        )}
+        {isConnected && (
+          <div style={{ fontSize: 10, color: "#00ff88", fontFamily: mono, marginBottom: 16 }}>
+            wallet connected: {address?.slice(0, 6)}...{address?.slice(-4)} ({walletKind})
+          </div>
+        )}
 
         <div style={{ border: "1px solid #1a1a1a", borderRadius: 10, background: "#0a0a0a", overflow: "hidden" }}>
           <div style={{ background: "#111", borderBottom: "1px solid #1a1a1a", padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -141,24 +227,47 @@ export default function DaoCheckDemo() {
               />
             </div>
 
-            <button
-              onClick={runQuery}
-              disabled={running || !wallet.trim()}
-              style={{
-                width: "100%",
-                background: running ? "#0a0a0a" : "#000",
-                border: running ? "1px solid #1a1a1a" : "1px solid #00ff88",
-                borderRadius: 6,
-                padding: "11px 16px",
-                fontSize: 11,
-                fontFamily: mono,
-                fontWeight: 600,
-                color: running ? "#444" : "#00ff88",
-                cursor: running || !wallet.trim() ? "not-allowed" : "pointer",
-              }}
-            >
-              {running ? "querying..." : "$ run contributor-check.sh"}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={runFreeDemo}
+                disabled={running || payRunning || !wallet.trim()}
+                style={{
+                  flex: 1,
+                  minWidth: 160,
+                  background: running ? "#0a0a0a" : "#000",
+                  border: running ? "1px solid #1a1a1a" : "1px solid #00ff88",
+                  borderRadius: 6,
+                  padding: "11px 16px",
+                  fontSize: 11,
+                  fontFamily: mono,
+                  fontWeight: 600,
+                  color: running ? "#444" : "#00ff88",
+                  cursor: running || payRunning || !wallet.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {running ? "querying..." : "$ free_demo.sh"}
+              </button>
+
+              <button
+                onClick={runPaidQuery}
+                disabled={payRunning || running || !wallet.trim()}
+                style={{
+                  flex: 1,
+                  minWidth: 160,
+                  background: payRunning ? "#0a0a0a" : "#60a5fa",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "11px 16px",
+                  fontSize: 11,
+                  fontFamily: mono,
+                  fontWeight: 700,
+                  color: payRunning ? "#444" : "#000",
+                  cursor: payRunning || running || !wallet.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {payRunning ? "processing payment..." : "$ pay_and_verify() — $0.01"}
+              </button>
+            </div>
           </div>
         </div>
 
