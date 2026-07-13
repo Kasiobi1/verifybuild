@@ -19,10 +19,12 @@ import crypto from "crypto";
 const OKX_BASE_URL = "https://web3.okx.com";
 const X402_PATH_PREFIX = "/api/v6/pay/x402";
 
-// X Layer (CAIP-2 eip155:196). USDC on X Layer, per OKX docs.
+// X Layer (CAIP-2 eip155:196). USDT0 — X Layer's canonical USDT (per OKX,
+// the old wrapped USDT address is being phased out in favor of USDT0).
+// Matches the marketplace listing, which denominates the fee in USDT.
 const NETWORK = "eip155:196";
-const USDC_ASSET = "0x74b7f16337b8972027f6196a17a631ac6de26d22";
-const USDC_DECIMALS = 6; // standard USDC decimals — confirm against OKX docs if this ever seems off
+const USDT0_ASSET = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
+const USDT0_DECIMALS = 6; // standard for USDT-family tokens — VERIFY against the contract's decimals() on OKLink before relying on this
 
 // Price per verify-query call. $0.01 keeps this genuinely "pay-per-call"
 // cheap, matching the docs' own example pricing.
@@ -92,11 +94,15 @@ export function buildPaymentRequirements(): PaymentRequirements {
   return {
     scheme: "exact",
     network: NETWORK,
-    amount: priceToAtomicUnits(PRICE_USD, USDC_DECIMALS),
-    asset: USDC_ASSET,
+    amount: priceToAtomicUnits(PRICE_USD, USDT0_DECIMALS),
+    asset: USDT0_ASSET,
     payTo,
     maxTimeoutSeconds: 60,
-    extra: { name: "USDC", version: "2" },
+    // Confirmed via OKLink contract read (name() call): "USD₮0" — note the
+    // special ₮ character, not a plain "T". version is NOT exposed as a
+    // public getter on this contract; "1" is the common default for
+    // EIP-3009 tokens but is UNCONFIRMED — revisit first if signing fails.
+    extra: { name: "USD₮0", version: "1" },
   };
 }
 

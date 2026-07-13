@@ -104,8 +104,8 @@ export async function buildAndSignPayment(
   const validBefore = Math.floor(Date.now() / 1000 + requirements.maxTimeoutSeconds).toString();
 
   const domain = {
-    name: requirements.extra?.name ?? "USDC",
-    version: requirements.extra?.version ?? "2",
+    name: requirements.extra?.name ?? "USD₮0",
+    version: requirements.extra?.version ?? "1",
     chainId: X_LAYER_CHAIN_ID,
     verifyingContract: requirements.asset,
   };
