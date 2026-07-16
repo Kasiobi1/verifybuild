@@ -31,6 +31,10 @@ export interface AnalysisResult {
       innovation: number;
       completeness: number;
     };
+    githubVerified?: boolean;
+    githubUsername?: string | null;
+    isFork?: boolean;
+    contributionPercentage?: number | null;
   };
 }
 
@@ -179,6 +183,23 @@ function ResultCard({ result }: { result: AnalysisResult }) {
             <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, color: "#555", fontFamily: mono, border: "1px solid #1a1a1a", borderRadius: 3, padding: "2px 8px" }}>
               <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#00ff88", display: "inline-block" }} />{analysis.category}
             </div>
+            {analysis.githubVerified ? (
+              <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, color: "#60a5fa", fontFamily: mono, border: "1px solid #60a5fa30", borderRadius: 3, padding: "2px 8px", marginLeft: 6 }}>
+                ✓ github-verified @{analysis.githubUsername}
+                {analysis.contributionPercentage !== null && analysis.contributionPercentage !== undefined && (
+                  <span style={{ opacity: 0.7 }}>· {analysis.contributionPercentage}% attributed</span>
+                )}
+              </div>
+            ) : (
+              <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, color: "#fbbf24", fontFamily: mono, border: "1px solid #fbbf2430", borderRadius: 3, padding: "2px 8px", marginLeft: 6 }}>
+                ⚠ unverified — connect GitHub for a stronger credential
+              </div>
+            )}
+            {analysis.isFork && (
+              <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, color: "#fbbf24", fontFamily: mono, border: "1px solid #fbbf2430", borderRadius: 3, padding: "2px 8px", marginLeft: 6 }}>
+                ⚠ forked repository
+              </div>
+            )}
           </div>
           <ScoreRing score={analysis.score} />
         </div>

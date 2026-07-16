@@ -3,6 +3,7 @@
 import { useState } from "react";
 import SubmitForm, { AnalysisResult } from "@/components/SubmitForm";
 import WalletConnect from "@/components/WalletConnect";
+import GitHubConnect from "@/components/GitHubConnect";
 
 const mono = "JetBrains Mono, monospace";
 
@@ -34,6 +35,7 @@ export default function SubmitPage() {
           <a href="/" style={{ fontSize: 11, color: "#444", textDecoration: "none", fontFamily: mono }}>
             ← home
           </a>
+          <GitHubConnect />
           <WalletConnect />
         </div>
       </nav>
@@ -49,6 +51,7 @@ export default function SubmitPage() {
           </h1>
           <p style={{ fontSize: 11, color: "#555", fontFamily: mono, lineHeight: 1.6 }}>
             Paste a GitHub URL below. AI reads the code and issues a scored, on-chain credential to your wallet.
+            Connect GitHub to unlock fork detection and contribution-verified scoring.
           </p>
         </div>
 
