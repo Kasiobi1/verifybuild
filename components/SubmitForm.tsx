@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/hooks/useWallet";
 import RadarChart from "@/components/RadarChart";
+import { buildCredentialSignMessage } from "@/lib/credentialSignature";
 
 export interface AnalysisResult {
   success: boolean;
@@ -104,7 +105,7 @@ function ScoreRing({ score }: { score: number }) {
 
 function ResultCard({ result }: { result: AnalysisResult }) {
   const { repo, analysis } = result;
-  const { address, isConnected } = useWallet();
+  const { address, isConnected, signMessage } = useWallet();
   const router = useRouter();
   const [issuing, setIssuing] = useState(false);
   const [issued, setIssued] = useState(false);
@@ -122,10 +123,29 @@ function ResultCard({ result }: { result: AnalysisResult }) {
     }
     setIssuing(true); setIssueError(null);
     try {
+      // Request a signature proving this wallet actually consents to this
+      // specific credential — not just "a wallet happens to be connected."
+      const message = buildCredentialSignMessage({
+        walletAddress: address,
+        repoUrl: repo.githubUrl,
+        score: analysis.score,
+        credentialTitle: analysis.credentialTitle,
+        githubUsername: analysis.githubUsername,
+      });
+
+      let signature: string;
+      try {
+        signature = await signMessage(message);
+      } catch {
+        setIssueError("Signature request was rejected or failed. You must sign to issue a credential.");
+        setIssuing(false);
+        return;
+      }
+
       const res = await fetch("/api/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address, repo, analysis }),
+        body: JSON.stringify({ walletAddress: address, repo, analysis, signature }),
       });
       const data = await res.json();
 
@@ -279,7 +299,7 @@ function ResultCard({ result }: { result: AnalysisResult }) {
         <>
           {issueError && <div style={{ fontSize: 10, color: "#f87171", fontFamily: mono, border: "1px solid #f8717130", borderRadius: 6, padding: "10px 14px", marginBottom: 8, background: "#f8717108" }}>error: {issueError}</div>}
           <button onClick={handleIssue} disabled={issuing} style={{ width: "100%", background: issuing ? "#0a0a0a" : "#00ff88", border: issuing ? "1px solid #1a1a1a" : "none", borderRadius: 8, padding: "14px 20px", fontSize: "clamp(11px, 3vw, 13px)", fontFamily: mono, fontWeight: 700, color: issuing ? "#444" : "#000", cursor: issuing ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.2s", boxShadow: issuing ? "none" : "0 0 20px rgba(0,255,136,0.3)" }}>
-            {issuing ? (<><span style={{ width: 10, height: 10, border: "2px solid #333", borderTopColor: "#00ff88", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />issuing...</>) : !isConnected ? "connect_wallet() → issue_credential()" : "./issue_credential.sh"}
+            {issuing ? (<><span style={{ width: 10, height: 10, border: "2px solid #333", borderTopColor: "#00ff88", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />awaiting signature...</>) : !isConnected ? "connect_wallet() → issue_credential()" : "./sign_and_issue.sh"}
           </button>
         </>
       )}

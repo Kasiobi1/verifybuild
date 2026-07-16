@@ -1,17 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { randomUUID } from "crypto";
+import { ethers } from "ethers";
+import { buildCredentialSignMessage } from "@/lib/credentialSignature";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { walletAddress, repo, analysis } = body;
+    const { walletAddress, repo, analysis, signature } = body;
 
     if (!walletAddress) {
       return NextResponse.json({ error: "Wallet address is required." }, { status: 400 });
     }
     if (!analysis) {
       return NextResponse.json({ error: "Analysis data is required." }, { status: 400 });
+    }
+    if (!signature) {
+      return NextResponse.json({ error: "Wallet signature is required to issue a credential." }, { status: 400 });
+    }
+
+    // Reconstruct the exact message the client should have signed, then
+    // recover the actual signer address from the signature. If it doesn't
+    // match the claimed wallet, someone is trying to issue a credential to
+    // a wallet they don't control — reject outright.
+    const expectedMessage = buildCredentialSignMessage({
+      walletAddress,
+      repoUrl: repo?.githubUrl ?? "",
+      score: analysis?.score,
+      credentialTitle: analysis?.credentialTitle ?? "",
+      githubUsername: analysis?.githubUsername ?? null,
+    });
+
+    let recoveredAddress: string;
+    try {
+      recoveredAddress = ethers.verifyMessage(expectedMessage, signature);
+    } catch {
+      return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
+    }
+
+    if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Signature does not match the claimed wallet address." },
+        { status: 401 }
+      );
     }
 
     const client = await clientPromise;
@@ -43,6 +74,9 @@ export async function POST(req: NextRequest) {
       analysis,
       issuedAt: new Date(),
       status: "pending",
+      // Signature is stored for auditability — proof this specific wallet
+      // consented to this specific credential at issuance time.
+      signature,
     };
 
     await collection.insertOne(credential);

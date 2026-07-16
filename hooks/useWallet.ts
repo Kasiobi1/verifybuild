@@ -157,5 +157,18 @@ export function useWallet() {
     return () => provider.removeListener("accountsChanged", handleAccountsChanged);
   }, [state.walletKind, disconnect]);
 
-  return { ...state, connect, disconnect };
+  const signMessage = useCallback(async (message: string): Promise<string> => {
+    if (!state.walletKind) {
+      throw new Error("No wallet connected.");
+    }
+    const provider = getProvider(state.walletKind);
+    if (!provider) {
+      throw new Error("Wallet provider not found.");
+    }
+    const ethersProvider = new ethers.BrowserProvider(provider);
+    const signer = await ethersProvider.getSigner();
+    return signer.signMessage(message);
+  }, [state.walletKind]);
+
+  return { ...state, connect, disconnect, signMessage };
 }
